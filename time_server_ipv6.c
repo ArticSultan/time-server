@@ -108,16 +108,60 @@ int main() {
         return 1;
     }
 
+    SOCKET max_socket;
+
+    
 
     printf("Waiting for connection...\n");
-    struct sockaddr_storage client_address;
-    socklen_t client_len = sizeof(client_address);
-    SOCKET socket_client = accept(socket_listen,
-            (struct sockaddr*) &client_address, &client_len);
-    if (!ISVALIDSOCKET(socket_client)) {
-        fprintf(stderr, "accept() failed. (%d)\n", GETSOCKETERRNO());
-        return 1;
-    }
+    while(1) {
+        fd_set writes;
+        writes = master;
+        if (select(max_socket+1,) < 0) {
+            fprintf(stderr, "select() failed. (%d)\n", GETSOCKETERRNO());
+            return 1;
+        }
+
+        SOCKET i;
+        for(i = 1; i <= max_socket; ++i) {
+            if (FD_ISSET(i, &writes)) {
+
+                if (i == socket_listen) {
+                    struct sockaddr_storage client_address;
+                    socklen_t client_len = sizeof(client_address);
+                    SOCKET socket_client = accept(socket_listen,
+                        (struct sockaddr*) &client_address, 
+                        &client_len);
+                    if (!ISVALIDSOCKET(socket_client)) {
+                        fprintf(stderr, "accept() failed. (%d)\n", 
+                            GETSOCKETERRNO());
+                        return 1;
+                    }
+
+                    FD_SET(socket_client, &master);
+                    if (socket_client > max_socket)
+                        max_socket = socket_client;
+
+                    char address_buffer[100];
+                    getnameinfo((struct sockaddr*)&client_address,
+                            client_len,
+                            address_buffer, sizeof(address_buffer), 0, 0,
+                            NI_NUMERICHOST);
+                    printf("New connection from %s\n", address_buffer);
+
+                }
+            } else { 
+                printf("Reading request...\n");
+    char request[1024];
+    int bytes_received = recv(socket_client, request, 1024, 0);
+    printf("Received %d bytes.\n", bytes_received);
+    //printf("%.*s", bytes_received, request);
+                if (bytes_received < 1) {
+                        FD_CLR(i, &master);
+                        CLOSESOCKET(i);
+                        continue;
+                    }
+            }
+                
 
 
     printf("Client is connected... ");
@@ -128,11 +172,7 @@ int main() {
     printf("%s\n", address_buffer);
 
 
-    printf("Reading request...\n");
-    char request[1024];
-    int bytes_received = recv(socket_client, request, 1024, 0);
-    printf("Received %d bytes.\n", bytes_received);
-    //printf("%.*s", bytes_received, request);
+    
 
 
     printf("Sending response...\n");
