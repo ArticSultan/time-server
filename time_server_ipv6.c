@@ -163,6 +163,12 @@ int main() {
                         CLOSESOCKET(i);
                         continue;
                     }
+                
+                    int j;
+                    for (j = 0; j < bytes_received; ++j)
+                        read[j] = toupper(read[j]);
+                    send(i, read, bytes_received, 0);
+                }
             }
                 
 
