@@ -108,15 +108,18 @@ int main() {
         return 1;
     }
 
+    fd_set master;
+    FD_ZERO(&master);
+    FD_SET(socket_listen, &master);
     SOCKET max_socket;
 
-    
 
     printf("Waiting for connection...\n");
+    
     while(1) {
         fd_set writes;
         writes = master;
-        if (select(max_socket+1,) < 0) {
+        if (select(max_socket+1, &writes, 0, 0, 0) < 0) {
             fprintf(stderr, "select() failed. (%d)\n", GETSOCKETERRNO());
             return 1;
         }
