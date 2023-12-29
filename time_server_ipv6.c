@@ -127,7 +127,6 @@ int main() {
         SOCKET i;
         for(i = 1; i <= max_socket; ++i) {
             if (FD_ISSET(i, &writes)) {
-
                 if (i == socket_listen) {
                     struct sockaddr_storage client_address;
                     socklen_t client_len = sizeof(client_address);
@@ -141,18 +140,24 @@ int main() {
                     }
 
                     FD_SET(socket_client, &master);
-                    if (socket_client > max_socket)
+                    if (socket_client > max_socket) {
                         max_socket = socket_client;
-
+                    }
                     char address_buffer[100];
                     getnameinfo((struct sockaddr*)&client_address,
                             client_len,
                             address_buffer, sizeof(address_buffer), 0, 0,
                             NI_NUMERICHOST);
                     printf("New connection from %s\n", address_buffer);
-
-                }
-            } else { 
+                    
+                    printf("Client is connected... ");
+                    char address_buffer[100];
+                    getnameinfo((struct sockaddr*)&client_address,
+                             client_len, address_buffer, sizeof(address_buffer), 0, 0,
+                             NI_NUMERICHOST);
+                     printf("%s\n", address_buffer);
+               }
+           } else { 
                 printf("Reading request...\n");
                 char request[1024];
                 int bytes_received = recv(socket_client, request, 1024, 0);
@@ -163,35 +168,23 @@ int main() {
                     CLOSESOCKET(i);
                     continue;
                 }
-            }
                 
+                printf("Sending response...\n");
+                    const char *response =
+                        "HTTP/1.1 200 OK\r\n"
+                        "Connection: close\r\n"
+                        "Content-Type: text/plain\r\n\r\n"
+                        "Local time is: ";
+                    int bytes_sent = send(socket_client, response, strlen(response), 0);
+                    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
 
-
-    printf("Client is connected... ");
-    char address_buffer[100];
-    getnameinfo((struct sockaddr*)&client_address,
-            client_len, address_buffer, sizeof(address_buffer), 0, 0,
-            NI_NUMERICHOST);
-    printf("%s\n", address_buffer);
-
-
-
-
-    printf("Sending response...\n");
-    const char *response =
-        "HTTP/1.1 200 OK\r\n"
-        "Connection: close\r\n"
-        "Content-Type: text/plain\r\n\r\n"
-        "Local time is: ";
-    int bytes_sent = send(socket_client, response, strlen(response), 0);
-    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
-
-    time_t timer;
-    time(&timer);
-    char *time_msg = ctime(&timer);
-    bytes_sent = send(socket_client, time_msg, strlen(time_msg), 0);
-    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(time_msg));
-
+                    time_t timer;
+                    time(&timer);
+                    char *time_msg = ctime(&timer);
+                    bytes_sent = send(socket_client, time_msg, strlen(time_msg), 0);
+                    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(time_msg));
+            }
+        }
 
     printf("Closing connection...\n");
     CLOSESOCKET(socket_client);
