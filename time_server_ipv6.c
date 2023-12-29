@@ -154,20 +154,14 @@ int main() {
                 }
             } else { 
                 printf("Reading request...\n");
-    char request[1024];
-    int bytes_received = recv(socket_client, request, 1024, 0);
-    printf("Received %d bytes.\n", bytes_received);
-    //printf("%.*s", bytes_received, request);
+                char request[1024];
+                int bytes_received = recv(socket_client, request, 1024, 0);
+                printf("Received %d bytes.\n", bytes_received);
+                //printf("%.*s", bytes_received, request);
                 if (bytes_received < 1) {
-                        FD_CLR(i, &master);
-                        CLOSESOCKET(i);
-                        continue;
-                    }
-                
-                    int j;
-                    for (j = 0; j < bytes_received; ++j)
-                        read[j] = toupper(read[j]);
-                    send(i, read, bytes_received, 0);
+                    FD_CLR(i, &master);
+                    CLOSESOCKET(i);
+                    continue;
                 }
             }
                 
@@ -181,7 +175,6 @@ int main() {
     printf("%s\n", address_buffer);
 
 
-    
 
 
     printf("Sending response...\n");
