@@ -75,7 +75,7 @@ int main() {
     printf("Configuring local address...\n");
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET6;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
@@ -111,26 +111,26 @@ int main() {
     fd_set master;
     FD_ZERO(&master);
     FD_SET(socket_listen, &master);
-    SOCKET max_socket;
+    SOCKET max_socket = socket_listen;
 
 
     printf("Waiting for connection...\n");
     
     while(1) {
-        fd_set writes;
-        writes = master;
-        if (select(max_socket+1, &writes, 0, 0, 0) < 0) {
+        fd_set reads;
+        reads = master;
+        if (select(max_socket+1, &reads, 0, 0, 0) < 0) {
             fprintf(stderr, "select() failed. (%d)\n", GETSOCKETERRNO());
             return 1;
         }
 
         SOCKET i;
         for(i = 1; i <= max_socket; ++i) {
-            if (FD_ISSET(i, &writes)) {
+            if (FD_ISSET(i, &reads)) {
                 if (i == socket_listen) {
-                    struct sockaddr_storage client_address;
-                    socklen_t client_len = sizeof(client_address);
-                    SOCKET socket_client = accept(socket_listen,
+                	struct sockaddr_storage client_address;
+                	socklen_t client_len = sizeof(client_address);
+                	SOCKET socket_client = accept(socket_listen,
                         (struct sockaddr*) &client_address, 
                         &client_len);
                     if (!ISVALIDSOCKET(socket_client)) {
@@ -149,46 +149,42 @@ int main() {
                             address_buffer, sizeof(address_buffer), 0, 0,
                             NI_NUMERICHOST);
                     printf("New connection from %s\n", address_buffer);
-                    
                     printf("Client is connected... ");
-                    char address_buffer[100];
-                    getnameinfo((struct sockaddr*)&client_address,
-                             client_len, address_buffer, sizeof(address_buffer), 0, 0,
-                             NI_NUMERICHOST);
-                     printf("%s\n", address_buffer);
+                    printf("%s\n", address_buffer);
+               } else { 
+                   printf("Reading request...\n");
+                   char request[1024];
+                   int bytes_received = recv(i, request, 1024, 0);
+                   printf("Received %d bytes.\n", bytes_received);
+                   //printf("%.*s", bytes_received, request);
+                   if (bytes_received < 1) {
+                       FD_CLR(i, &master);
+                       CLOSESOCKET(i);
+                       continue;
+                   }
+                   
+                   printf("Sending response...\n");
+                       const char *response =
+                           "HTTP/1.1 200 OK\r\n"
+                           "Connection: close\r\n"
+                           "Content-Type: text/plain\r\n\r\n"
+                           "Local time is: ";
+                       int bytes_sent = send(i, response, strlen(response), 0);
+                       printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
+
+                       time_t timer;
+                       time(&timer);
+                       char *time_msg = ctime(&timer);
+                       bytes_sent = send(i, time_msg, strlen(time_msg), 0);
+                       printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(time_msg));
                }
-           } else { 
-                printf("Reading request...\n");
-                char request[1024];
-                int bytes_received = recv(socket_client, request, 1024, 0);
-                printf("Received %d bytes.\n", bytes_received);
-                //printf("%.*s", bytes_received, request);
-                if (bytes_received < 1) {
-                    FD_CLR(i, &master);
-                    CLOSESOCKET(i);
-                    continue;
-                }
                 
-                printf("Sending response...\n");
-                    const char *response =
-                        "HTTP/1.1 200 OK\r\n"
-                        "Connection: close\r\n"
-                        "Content-Type: text/plain\r\n\r\n"
-                        "Local time is: ";
-                    int bytes_sent = send(socket_client, response, strlen(response), 0);
-                    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
+           } //if FD_ISSET
+        } //for i to max_socket
+    } //while(1)
 
-                    time_t timer;
-                    time(&timer);
-                    char *time_msg = ctime(&timer);
-                    bytes_sent = send(socket_client, time_msg, strlen(time_msg), 0);
-                    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(time_msg));
-            }
-        }
-
-    printf("Closing connection...\n");
-    CLOSESOCKET(socket_client);
-
+   
+    
     printf("Closing listening socket...\n");
     CLOSESOCKET(socket_listen);
 
